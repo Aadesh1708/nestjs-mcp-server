@@ -1,15 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { McpBackendModule } from './../src/mcp-backend.module';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('McpBackendController (e2e)', () => {
+  let app: INestApplication;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [McpBackendModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
