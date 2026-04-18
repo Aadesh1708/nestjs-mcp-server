@@ -1,104 +1,154 @@
-# NestJS MCP Server - Model Context Protocol Example
+# nest-mcp-agent-starter
 
-> By: [@LiusDev](https://github.com/liusdev)
+> Signature: **Aadesh Jain**
 
-This repository demonstrates a NestJS implementation of the Model Context Protocol (MCP) with a microservice architecture. It consists of two main services:
+A practical monorepo showing how to:
 
-1. **mcp-server**: Provides functions to get current time context for LLMs
-2. **mcp-backend**: A client that uses LangChain.js and integrates with the MCP client SDK to connect to the MCP server
+- expose tools from a NestJS MCP server (`mcp-server`)
+- consume those tools from another NestJS service (`mcp-backend`)
+- run an LLM agent with LangChain + LangGraph that can call MCP tools over SSE
 
-## Getting Started
+This project is a good starter template for building "LLM + tools" applications with clear server/client separation.
 
-### Prerequisites
+## Table of Contents
 
-- Node.js (v20 or higher)
-- npm
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Environment Variables](#environment-variables)
+- [Installation](#installation)
+- [Run the Apps](#run-the-apps)
+- [How to Use](#how-to-use)
+- [MCP Tools Exposed by `mcp-server`](#mcp-tools-exposed-by-mcp-server)
+- [Connect to Multiple MCP Servers](#connect-to-multiple-mcp-servers)
+- [Project Structure](#project-structure)
+- [Scripts](#scripts)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-### Installation
+## Architecture
 
-1. Clone the repository
-2. Install dependencies:
+`mcp-server` (default port `3000`)
+- exposes MCP tools over SSE at `/sse`
+- includes tools like `time`, `get-todos`, `create-todo`, `update-todo`, `delete-todo`
+
+`mcp-backend` (default port `3001`)
+- receives user prompts via HTTP (`POST /`)
+- creates a LangChain React-style agent
+- fetches tools from `mcp-server` through `@langchain/mcp-adapters`
+- lets the LLM decide when to call MCP tools
+
+Flow:
+1. Client sends a message to `mcp-backend`.
+2. `mcp-backend` invokes the agent with available MCP tools.
+3. Agent may call `mcp-server` tools over SSE.
+4. Final text response is returned to the client.
+
+## Tech Stack
+
+- [NestJS](https://nestjs.com/)
+- [LangChain.js](https://js.langchain.com/)
+- [LangGraph](https://langchain-ai.github.io/langgraphjs/)
+- [Model Context Protocol SDK](https://github.com/modelcontextprotocol)
+- [`@langchain/mcp-adapters`](https://www.npmjs.com/package/@langchain/mcp-adapters)
+- [`@rekog/mcp-nest`](https://www.npmjs.com/package/@rekog/mcp-nest)
+
+## Prerequisites
+
+- Node.js 20+
+- npm 10+
+
+## Environment Variables
+
+Create a `.env` file at the repository root:
+
+```env
+# mcp-backend
+GROQ_API_KEY=your_groq_api_key
+GROQ_API_URL=https://api.groq.com/openai/v1
+PORT=3001
+```
+
+Notes:
+- `GROQ_API_KEY` is required by `mcp-backend`.
+- `GROQ_API_URL` defaults to `https://api.groq.com/openai/v1` if omitted.
+- `PORT` in this file is used by `mcp-backend`.
+- `mcp-server` runs on `MCP_SERVER_PORT` with fallback `3000` (from code default). If you want to override it via environment, add:
+
+```env
+MCP_SERVER_PORT=3000
+```
+
+## Installation
 
 ```bash
 npm install
 ```
 
-3. Rename the `.env.example` to `.env` and add your OpenAI API key:
+## Run the Apps
 
-```bash
-cp .env.example .env
-```
+Start **both** applications in separate terminals.
 
-Then edit the `.env` file to include your OpenAI API key:
-
-```
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_API_URL=https://api.openai.com/v1
-PORT=3001
-```
-
-## Running the Services
-
-You need to run both services for the complete functionality:
-
-### Start the MCP Server
+### 1) Start MCP Server
 
 ```bash
 npm run start:dev mcp-server
 ```
 
-This will start the MCP server on port 3000 (default).
+Server URL (default): `http://localhost:3000`  
+SSE endpoint consumed by backend: `http://localhost:3000/sse`
 
-### Start the MCP Backend
+### 2) Start MCP Backend
 
 ```bash
 npm run start:dev mcp-backend
 ```
 
-This will start the MCP backend on port 3001 (default).
+Backend URL (default): `http://localhost:3001`
 
-## Usage Example
+## How to Use
 
-Once both services are running, you can test the functionality by sending a POST request to the MCP backend:
+Send a prompt to the backend:
 
-### Sample Request
+```bash
+curl -X POST http://localhost:3001 \
+  -H "Content-Type: application/json" \
+  -d "{\"message\":\"What time is it in India?\"}"
+```
 
-Send a POST request to `http://localhost:3001` with the following JSON body:
+Example response:
 
 ```json
 {
-  "message": "What time is it in Viet Nam?"
+  "message": "It is currently ... in India."
 }
 ```
 
-### Using cURL
+Health check:
 
 ```bash
-curl -X POST http://localhost:3001 -H "Content-Type: application/json" -d "{\"message\": \"What time is it in Viet Nam?\"}"
+curl http://localhost:3001
 ```
 
-### Using Postman
+## MCP Tools Exposed by `mcp-server`
 
-1. Create a new POST request to `http://localhost:3001`
-2. Set the Content-Type header to `application/json`
-3. In the request body, select "raw" and "JSON", then enter:
-   ```json
-   {
-     "message": "What time is it in Viet Nam?"
-   }
-   ```
-4. Send the request
+- `hello(name)`
+- `time()`
+- `get-todos()`
+- `create-todo(title, content)`
+- `update-todo(id, title, content, isDone)`
+- `delete-todo(id)`
 
-The response will contain the current time in Vietnam, retrieved through the MCP server's time context function.
+These tools are registered in `apps/mcp-server/src/app.tool.ts`.
 
-## Connecting to Multiple MCP Servers
+## Connect to Multiple MCP Servers
 
-The backend can connect to multiple MCP servers simultaneously. To add additional servers, modify the `McpClientModule.register` configuration in `apps/mcp-backend/src/mcp-backend.module.ts`:
+Edit `McpClientModule.register(...)` in `apps/mcp-backend/src/mcp-backend.module.ts`:
 
-```typescript
+```ts
 McpClientModule.register({
   throwOnLoadError: true,
-  prefixToolNameWithServerName: false,  // Set to true to prefix tool names with server names
+  prefixToolNameWithServerName: false,
   additionalToolNamePrefix: '',
   mcpServers: {
     myServer: {
@@ -111,55 +161,63 @@ McpClientModule.register({
         delayMs: 2000,
       },
     },
-    // Add additional servers here
-    anotherServer: {
-      transport: 'sse',
-      url: 'http://localhost:4000/sse',  // Different port for another server
-      useNodeEventSource: true,
-      reconnect: {
-        enabled: true,
-        maxAttempts: 5,
-        delayMs: 2000,
-      },
-    },
   },
-}),
+});
 ```
 
-When connecting to multiple servers:
-
-- Consider setting `prefixToolNameWithServerName: true` to avoid tool name conflicts
-- Ensure each server has a unique key in the `mcpServers` object
-- Make sure each server is running on a different port
-
-The MCP client will automatically fetch tools from all configured servers and make them available to the LLM.
-
-## Architecture
-
-- **mcp-server**: Exposes tools via the Model Context Protocol, including a function to get the current time
-- **mcp-backend**: Connects to the MCP server, retrieves available tools, and uses them with LangChain.js to process user queries
-
-## Technologies Used
-
-- NestJS
-- LangChain.js
-- Model Context Protocol (MCP)
-- @langchain/mcp-adapters: MCP client adapters for LangChain.js
-- @rekog/mcp-nest: MCP server implementation for NestJS
+Tips:
+- set `prefixToolNameWithServerName: true` if tool names can collide
+- keep each server key unique (`myServer`, `financeServer`, etc.)
+- verify every configured endpoint is reachable before booting `mcp-backend`
 
 ## Project Structure
 
+```text
+.
+├── apps
+│   ├── mcp-server
+│   │   └── src
+│   │       ├── app.module.ts
+│   │       ├── app.service.ts
+│   │       └── app.tool.ts
+│   └── mcp-backend
+│       └── src
+│           ├── ai
+│           ├── dto
+│           ├── mcp-client
+│           ├── mcp-backend.controller.ts
+│           ├── mcp-backend.module.ts
+│           └── mcp-backend.service.ts
+├── package.json
+└── README.md
 ```
-mcp-server/
-├── apps/
-│   ├── mcp-server/       # MCP server implementation
-│   └── mcp-backend/      # MCP client implementation
-├── dist/                 # Compiled output
-├── node_modules/
-├── .env                  # Environment variables
-└── package.json
-```
+
+## Scripts
+
+- `npm run build` - build all apps
+- `npm run start` - start default Nest app
+- `npm run start:dev` - start in watch mode
+- `npm run lint` - run ESLint with auto-fix
+- `npm run test` - run unit tests
+
+## Troubleshooting
+
+- **429 / quota errors from backend**  
+  Your AI provider quota/rate limit is reached. Wait and retry.
+
+- **401/403 from backend**  
+  Check `GROQ_API_KEY` and `GROQ_API_URL`.
+
+- **Backend cannot use MCP tools**  
+  Ensure `mcp-server` is running and `http://localhost:3000/sse` is accessible.
+
+- **Port conflicts**  
+  Change `PORT` (backend) and/or `MCP_SERVER_PORT` (server).
 
 ## License
 
-This project is licensed under the UNLICENSED License - see the LICENSE file for details.
+This project is currently `UNLICENSED` (see `package.json`).
+
+---
+
+Built and maintained by **Aadesh Jain**.

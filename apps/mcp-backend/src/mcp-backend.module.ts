@@ -11,8 +11,8 @@ import * as Joi from 'joi';
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
-        OPENAI_API_KEY: Joi.string().required(),
-        OPENAI_API_URL: Joi.string().default('https://api.openai.com/v1'),
+        GROQ_API_KEY: Joi.string().required(),
+        GROQ_API_URL: Joi.string().default('https://api.groq.com/openai/v1'),
         PORT: Joi.number().default(3001),
       }),
     }),

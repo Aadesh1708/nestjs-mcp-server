@@ -25,7 +25,7 @@ export class AppTool {
 
   @Tool({
     name: 'time',
-    description: 'Returns the current time of Viet Nam',
+    description: 'Returns the current time of India',
     parameters: z.object({}),
   })
   async getTime() {

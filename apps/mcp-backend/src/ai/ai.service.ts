@@ -6,16 +6,25 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AiService {
+  private llm: ChatOpenAI<ChatOpenAICallOptions> | null = null;
+
   constructor(private readonly configService: ConfigService) {}
 
   getLLM() {
-    return new ChatOpenAI({
-      model: 'gpt-4o-mini',
-      configuration: {
-        baseURL: this.configService.get('OPENAI_API_URL'),
-        apiKey: this.configService.get('OPENAI_API_KEY'),
-      },
-    });
+    if (!this.llm) {
+      this.llm = new ChatOpenAI({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.2,
+        timeout: 20000,
+        maxRetries: 2,
+        configuration: {
+          baseURL: this.configService.get<string>('GROQ_API_URL'),
+          apiKey: this.configService.get<string>('GROQ_API_KEY'),
+        },
+      });
+    }
+
+    return this.llm;
   }
 
   getAgent({
