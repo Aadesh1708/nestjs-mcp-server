@@ -5,6 +5,8 @@ import { McpModule } from '@rekog/mcp-nest';
 import { AppTool } from './app.tool';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
+import { McpBackendModule } from './../../mcp-backend/src/mcp-backend.module';
+import { McpBackendService } from './../../mcp-backend/src/mcp-backend.service';
 
 @Module({
   imports: [
@@ -20,6 +22,6 @@ import * as Joi from 'joi';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, AppTool],
+  providers: [AppService, AppTool, McpBackendService],
 })
 export class AppModule {}
